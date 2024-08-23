@@ -6,6 +6,7 @@
 #include <limits>
 #include <ranges>
 #include <concepts>
+#include <utility>
 
 namespace sprop {
 
@@ -42,12 +43,14 @@ using ClauseLen = Lit;
 /**
  * A clause range using const pointers.
  */
-using ClausePtrRange = std::ranges::subrange<const Lit*>;
+using ClausePtrRange = std::remove_cvref_t<
+    decltype(std::ranges::subrange(std::declval<const Lit*>(), std::declval<const Lit*>()))>;
 
 /**
  * A clause range using mutable pointers.
  */
-using MutClausePtrRange = std::ranges::subrange<Lit*>;
+using MutClausePtrRange = std::remove_cvref_t<
+    decltype(std::ranges::subrange(std::declval<Lit*>(), std::declval<Lit*>()))>;
 
 /**
  * A value that indicates an invalid variable/literal/clause.
