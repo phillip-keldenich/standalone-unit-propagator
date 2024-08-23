@@ -16,13 +16,13 @@ def collect_headers(header_dirs: list[Path]) -> dict[str, Path]:
     return headers
 
 
-_include_line_re = re.compile(r'^#\s*include\s*([<"])([^>"]+)([>"])$')
+_include_line_re = re.compile(r'^\s*[#]\s*include\s*([<"])([^>"]+)([>"])\s*$')
 
 
 def handle_header_line(headers: dict[str, Path], header_includes: set[str], header_stdincludes: set[str], line: str):
     m = _include_line_re.match(line)
-    if not m or m.group(1) != m.group(3):
-        raise ValueError(f"Invalid #include line: {line}")
+    if not m or m.group(1) != m.group(3).replace(">", "<"):
+        raise ValueError(f"Invalid #include line: '{line}'")
     is_system = (m.group(1) == '<')
     header_name = m.group(2)
     if is_system:
@@ -35,7 +35,7 @@ def handle_header_line(headers: dict[str, Path], header_includes: set[str], head
 
 def collect_includes(headers: dict[str, Path]) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     header_includes: dict[str, list[str]] = {}
-    stdincludes = dict[str, list[str]] = {}
+    stdincludes: dict[str, list[str]] = {}
     for header in headers:
         this_includes = set()
         this_stdincludes = set()
@@ -47,11 +47,12 @@ def collect_includes(headers: dict[str, Path]) -> tuple[dict[str, list[str]], di
                     handle_header_line(headers, this_includes, this_stdincludes, line)
         header_includes[header] = list(this_includes)
         stdincludes[header] = list(this_stdincludes)
+    return header_includes, stdincludes
 
 
 def guard_name(output_path: Path):
     name = "_".join(output_path.parts[-2:]).upper()
-    for forbidden in ('-', ' ', '/', '+'):
+    for forbidden in ('-', ' ', '/', '+', '.'):
         name = name.replace(forbidden, '_')
     return f'{name}_INCLUDED_'
 
@@ -96,11 +97,11 @@ def make_single_header(header_dirs, output_header):
                 found = True
         if not found:
             raise ValueError("Circular dependency detected")
-    stdincludes = set()
+    stdinclude_order = set()
     for header in header_order:
-        stdincludes.update(stdincludes[header])
+        stdinclude_order.update(stdincludes[header])
     os.makedirs(Path(output_header).parent, exist_ok=True)
-    write_output_header(all_headers, header_order, stdincludes, output_header)
+    write_output_header(all_headers, header_order, stdinclude_order, output_header)
 
 
 if __name__ == "__main__":

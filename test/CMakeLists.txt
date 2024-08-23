@@ -2,4 +2,3 @@ add_executable(test_standalone_propagator test_standalone_propagator.cpp)
 target_compile_features(test_standalone_propagator PRIVATE cxx_std_20)
 target_include_directories(test_standalone_propagator PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
 add_test(NAME run_test_standalone_propagator COMMAND test_standalone_propagator)
-

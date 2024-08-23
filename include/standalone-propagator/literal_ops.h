@@ -2,6 +2,7 @@
 #define SP_LITERAL_OPS_H_INCLUDED_
 
 #include "types.h"
+#include <vector>
 
 namespace sprop {
 namespace lit {
