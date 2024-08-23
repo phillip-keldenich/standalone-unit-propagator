@@ -234,6 +234,11 @@ class Propagator {
         return std::views::iota(Lit(0), m_num_vars * 2);
     }
 
+    /**
+     * @brief Get the number of variables in the formula.
+     */
+    Var num_vars() const noexcept { return m_num_vars; }
+
     // -------- STATE QUERY --------
     /**
      * @brief Check if the given literal is assigned to true in the current

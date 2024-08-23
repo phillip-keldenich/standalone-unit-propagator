@@ -4,21 +4,22 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <sstream>
-#include <cmath>
-#include <vector>
 #include <exception>
+#include <sstream>
 #include <limits>
-#include <utility>
+#include <type_traits>
+#include <concepts>
+#include <cstdint>
 #include <stdexcept>
-#include <ranges>
+#include <string>
+#include <utility>
 #include <cstddef>
 #include <format>
-#include <algorithm>
-#include <cstdint>
 #include <cassert>
-#include <string>
-#include <concepts>
+#include <vector>
+#include <ranges>
+#include <algorithm>
+#include <cmath>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
@@ -187,6 +188,94 @@ class UNSATException : public std::exception {
 #endif
 /// End original header: 'unsat_exception.h'
 
+/// Original header: #include "stamp_set.h"
+#ifndef SP_STAMP_SET_H_INCLUDED_
+#define SP_STAMP_SET_H_INCLUDED_
+
+
+namespace sprop {
+
+/**
+ * @brief A set of integer values implemented using a stamp value.
+ */
+template<typename ValueType, typename StampType = std::uint32_t>
+requires std::is_integral_v<ValueType> && std::is_unsigned_v<ValueType> &&
+         std::is_integral_v<StampType> && std::is_unsigned_v<StampType>
+class StampSet
+{
+  private:
+    std::vector<StampType> m_stamps;
+    StampType m_current_stamp;
+
+  public:
+    explicit StampSet(ValueType universe_size) :
+        m_stamps(universe_size, StampType(0)),
+        m_current_stamp(1)
+    {}
+
+    StampSet(const StampSet&) = default;
+    StampSet &operator=(const StampSet&) = default;
+    StampSet(StampSet&&) noexcept = default;
+    StampSet &operator=(StampSet&&) noexcept = default;
+
+    std::size_t universe_size() const noexcept {
+        return m_stamps.size();
+    }
+
+    void clear() noexcept {
+        if(++m_current_stamp == 0) {
+            std::fill(m_stamps.begin(), m_stamps.end(), StampType(0));
+            m_current_stamp = 1;
+        }
+    }
+
+    template<typename ForwardIterator>
+    void assign(ForwardIterator begin, ForwardIterator end) noexcept {
+        clear();
+        insert(begin, end);
+    }
+
+    template<typename ForwardIterator>
+    void insert(ForwardIterator begin, ForwardIterator end) noexcept {
+        std::for_each(begin, end, [&] (ValueType l) { insert(l); });
+    }
+
+    void insert(ValueType v) noexcept {
+        m_stamps[v] = m_current_stamp;
+    }
+
+    void erase(ValueType v) noexcept {
+        m_stamps[v] = 0;
+    }
+
+    bool check_insert(ValueType v) noexcept {
+        StampType& s = m_stamps[v];
+        bool result = (s != m_current_stamp);
+        s = m_current_stamp;
+        return result;
+    }
+
+    bool check_erase(ValueType v) noexcept {
+        StampType& s = m_stamps[v];
+        bool result = (s == m_current_stamp);
+        s = 0;
+        return result;
+    }
+
+    bool count(ValueType v) const noexcept {
+        return m_stamps[v] == m_current_stamp;
+    }
+
+    bool contains(ValueType v) const noexcept {
+        return count(v);
+    }
+};
+
+}
+
+#endif
+/// End original header: 'stamp_set.h'
+
 /// Original header: #include "literal_ops.h"
 #ifndef SP_LITERAL_OPS_H_INCLUDED_
 #define SP_LITERAL_OPS_H_INCLUDED_
@@ -282,6 +371,113 @@ static inline bool is_false_in(Lit l, const BitsetType& assignment) noexcept
 
 #endif
 /// End original header: 'literal_ops.h'
+
+/// Original header: #include "eliminate_subsumed.h"
+#ifndef SP_ELIMINATE_SUBSUMED_H_INCLUDED_
+#define SP_ELIMINATE_SUBSUMED_H_INCLUDED_
+
+
+namespace sprop {
+
+/**
+ * @brief Class to implement elimination of subsumed clauses
+ * using a 2-watch scheme.
+ */
+template<typename ClauseType>
+class SubsumptionChecker {
+  public:
+    SubsumptionChecker(std::vector<ClauseType>& clauses, Var n_all) :
+        m_nv(n_all),
+        m_nl(2 * n_all),
+        m_clauses(clauses),
+        m_in_clause(m_nl),
+        m_watching_clauses(m_nl)
+    {
+        p_init_watches();
+    }
+
+    void remove_subsumed() {
+        for(ClauseRef c = 0, n = m_clauses.size(); c < n; ++c) {
+            p_empty_if_subsumed(c);
+        }
+        auto deleted_begin = std::remove_if(m_clauses.begin(), m_clauses.end(), 
+                                            [] (const ClauseType& cl) { return cl.empty(); });
+        m_clauses.erase(deleted_begin, m_clauses.end());
+    }
+
+  private:
+    bool p_walk_watch_list(ClauseRef index, Lit l) {
+        auto& watch_list = m_watching_clauses[l];
+        auto end = watch_list.end();
+        auto out = watch_list.begin();
+        bool subsumed = false;
+        for(auto in = watch_list.begin(); in != end; ++in) {
+            ClauseRef cother = *in;
+            // we cannot subsume ourself. stay in the watch list.
+            if(cother == index) { *out++ = cother; continue; }
+            const ClauseType& other_lits = m_clauses[cother];
+            // subsumed clauses do not participate in subsumption anymore;
+            // they are dropped from watch lists without replacement when we
+            // encounter them here.
+            if(other_lits.empty()) { continue; }
+            // find replacement watch (must not be in the current clause).
+            auto replacement = std::find_if(other_lits.begin(), other_lits.end(), [&] (Lit l) {
+                return !m_in_clause.count(l);
+            });
+            if(replacement == other_lits.end()) {
+                // cother subsumes us.
+                subsumed = true;
+                // copy remaining watching clauses.
+                out = std::copy(in, end, out);
+                break;
+            } else {
+                // cother does not subsume us.
+                m_watching_clauses[*replacement].push_back(cother);
+            }
+        }
+        // trim watch list
+        watch_list.erase(out, end);
+        return subsumed;
+    }
+
+    void p_empty_if_subsumed(ClauseRef index) {
+        ClauseType& clause = m_clauses[index];
+        m_in_clause.assign(clause.begin(), clause.end());
+        for(Lit l : clause) {
+            if(p_walk_watch_list(index, l)) {
+                clause.clear();
+                return;
+            }
+        }
+    }
+
+    void p_init_watches() {
+        for(std::size_t ci = 0, cn = m_clauses.size(); ci < cn; ++ci) {
+            const auto& cl = m_clauses[ci];
+            m_watching_clauses[cl[0]].push_back(ClauseRef(ci));
+        }
+    }
+
+    Var m_nv;
+    Lit m_nl;
+    std::vector<ClauseType>& m_clauses;
+    StampSet<Lit, std::uint16_t> m_in_clause;
+    std::vector<std::vector<ClauseRef>> m_watching_clauses;
+};
+
+/**
+ * @brief Eliminate subsumed clauses from a vector of clauses.
+ */
+template<typename ClauseType>
+inline void eliminate_subsumed(std::vector<ClauseType>& clauses, Var n_all) {
+    SubsumptionChecker<ClauseType> subsumption_checker{clauses, n_all};
+    subsumption_checker.remove_subsumed();
+}
+
+}
+
+#endif
+/// End original header: 'eliminate_subsumed.h'
 
 /// Original header: #include "model_builder.h"
 #ifndef SP_MODEL_BUILDER_H_INCLUDED_
@@ -720,6 +916,11 @@ class Propagator {
     auto all_literals() const noexcept {
         return std::views::iota(Lit(0), m_num_vars * 2);
     }
+
+    /**
+     * @brief Get the number of variables in the formula.
+     */
+    Var num_vars() const noexcept { return m_num_vars; }
 
     // -------- STATE QUERY --------
     /**
@@ -1795,5 +1996,185 @@ std::vector<bool> Propagator::extract_assignment() const {
 
 #endif
 /// End original header: 'propagator.h'
+
+/// Original header: #include "extract_reduced_partial.h"
+#ifndef SP_EXTRACT_REDUCED_PARTIAL_H_INCLUDED_
+#define SP_EXTRACT_REDUCED_PARTIAL_H_INCLUDED_
+
+
+namespace sprop {
+
+static inline constexpr Lit FIXED_TRUE = NIL - 1;
+static inline constexpr Lit FIXED_FALSE = NIL - 2;
+
+/**
+ * @brief Class for extraction of a reduced 
+ *        formula/model from a propagator containing a 
+ *        non-conflicting partial assignment.
+ * The reduced formula represents the problem of finding
+ * a satisfying assignment for the original formula that
+ * extends the given partial assignment.
+ */
+class ReducedPartialExtractor {
+  public:
+    ReducedPartialExtractor() = default;
+
+    /**
+     * @brief Extracts the reduced formula from the given propagator.
+     */
+    inline void extract(const Propagator& propagator);
+
+    /**
+     * @brief Returns the reduced clauses.
+     */
+    const std::vector<std::vector<Lit>> &reduced_clauses() const {
+        return m_reduced_clauses;
+    }
+
+    /**
+     * @brief Number of variables, post-reduction.
+     */
+    std::size_t reduced_num_vars() const noexcept {
+        return m_new_to_old.size() / 2;
+    }
+
+    /**
+     * @brief Number of clauses, post-reduction.
+     */
+    std::size_t reduced_num_clauses() const noexcept {
+        return m_reduced_clauses.size();
+    }
+
+    /**
+     * Translate the given post-reduced literal to the
+     * corresponding pre-reduced literal.
+     */
+    Lit translate_to_old(Lit lnew) const {
+        return m_new_to_old[lnew];
+    }
+
+    /**
+     * Translate the given pre-reduced literal to the
+     * corresponding post-reduced literal.
+     * May return FIXED_TRUE or FIXED_FALSE instead of a real literal.
+     */
+    Lit translate_to_new(Lit old) const {
+        return m_old_to_new[old];
+    }
+
+  private:
+    // Is the given old literal true?
+    std::vector<bool> m_old_lit_is_true;
+    
+    // Is the given old literal false?
+    std::vector<bool> m_old_lit_is_false;
+    
+    // What pre-reduced literal does the given post-reduced literal represent?
+    std::vector<Lit> m_new_to_old;
+    
+    // What post-reduced literal does the given pre-reduced literal represent?
+    // NIL - 1 => fixed true, NIL - 2 => fixed false
+    std::vector<Lit> m_old_to_new;
+
+    // The non-satisfied clauses in the reduced formula,
+    // with fixed-false literals removed.
+    std::vector<std::vector<Lit>> m_reduced_clauses;
+
+    // Buffer for new clauses.
+    std::vector<Lit> m_new_clause_buffer;
+
+    void p_init_extraction(const Propagator& propagator) {
+        std::size_t nv = propagator.num_vars();
+        std::size_t nl = 2 * nv;
+        m_old_lit_is_false.assign(nl, false);
+        m_old_lit_is_true.assign(nl, false);
+        for(Lit l : propagator.get_trail()) {
+            m_old_lit_is_true[l] = true;
+            m_old_lit_is_false[lit::negate(l)] = true;
+        }
+        m_new_to_old.clear();
+        m_old_to_new.clear();
+        m_reduced_clauses.clear();
+    }
+
+    void p_make_literal_maps() {
+        std::size_t nlold = m_old_lit_is_true.size();
+        Lit nlnew = 0;
+        for(Lit l = 0; l < nlold; l += 2) {
+            assert(lit::positive(l));
+            assert(lit::negative(l+1));
+            if(m_old_lit_is_true[l]) {
+                m_old_to_new.push_back(FIXED_TRUE);
+                m_old_to_new.push_back(FIXED_FALSE);
+            } else if(m_old_lit_is_false[l]) {
+                m_old_to_new.push_back(FIXED_FALSE);
+                m_old_to_new.push_back(FIXED_TRUE);
+            } else {
+                m_old_to_new.push_back(nlnew);
+                m_old_to_new.push_back(nlnew + 1);
+                m_new_to_old.push_back(l);
+                m_new_to_old.push_back(l + 1);
+                nlnew += 2;
+            }
+        }
+    }
+
+    void p_translate_binaries(const Propagator& propagator) {
+        // translate binaries:
+        for(Lit l1 : propagator.all_literals()) {
+            if(m_old_lit_is_false[l1]) {
+                // the old literal is false; this
+                // means that the partner literal
+                // is already assigned true.
+                continue;
+            }
+            if(m_old_lit_is_true[l1]) {
+                // the old literal is true; this
+                // means that the clause is satisfied.
+                continue;
+            }
+            for(Lit l2 : propagator.binary_partners_of(l1)) {
+                if(m_old_lit_is_true[l2]) continue;
+                if(l1 < l2) {
+                    m_reduced_clauses.push_back(std::vector<Lit>{m_old_to_new[l1], m_old_to_new[l2]});
+                }
+            }
+        }
+    }
+
+    void p_translate_clause(ClausePtrRange literals) {
+        m_new_clause_buffer.clear();
+        for(Lit l : literals) {
+            if(m_old_lit_is_true[l]) return;
+            if(m_old_lit_is_false[l]) continue;
+            m_new_clause_buffer.push_back(m_old_to_new[l]);
+        }
+        assert(m_new_clause_buffer.size() > 1);
+        m_reduced_clauses.push_back(m_new_clause_buffer);
+    }
+
+    void p_translate_clauses(const Propagator& propagator) {
+        // no need to translate unaries!
+        p_translate_binaries(propagator);
+        // translate longer clauses:
+        for(ClauseRef cref = propagator.first_longer_clause(); 
+            cref < propagator.longer_clause_end(); cref = propagator.next_clause(cref)) 
+        {
+            p_translate_clause(propagator.lits_of(cref));
+        }
+    }
+};
+
+void ReducedPartialExtractor::extract(const Propagator& propagator) {
+    p_init_extraction(propagator);
+    p_make_literal_maps();
+    p_translate_clauses(propagator);
+    eliminate_subsumed(m_reduced_clauses, reduced_num_vars());
+}
+
+}
+
+#endif
+/// End original header: 'extract_reduced_partial.h'
 
 #endif // STANDALONE_PROPAGATOR_STANDALONE_PROPAGATOR_H_INCLUDED_
