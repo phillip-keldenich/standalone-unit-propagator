@@ -4,19 +4,21 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <cassert>
-#include <format>
-#include <sstream>
-#include <concepts>
-#include <limits>
+#include <utility>
+#include <cmath>
 #include <ranges>
-#include <cstdint>
-#include <stdexcept>
 #include <string>
-#include <algorithm>
+#include <cassert>
 #include <vector>
-#include <cstddef>
+#include <cstdint>
+#include <format>
+#include <concepts>
+#include <sstream>
 #include <exception>
+#include <stdexcept>
+#include <limits>
+#include <algorithm>
+#include <cstddef>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
@@ -59,12 +61,14 @@ using ClauseLen = Lit;
 /**
  * A clause range using const pointers.
  */
-using ClausePtrRange = std::ranges::subrange<const Lit*>;
+using ClausePtrRange = std::remove_cvref_t<
+    decltype(std::ranges::subrange(std::declval<const Lit*>(), std::declval<const Lit*>()))>;
 
 /**
  * A clause range using mutable pointers.
  */
-using MutClausePtrRange = std::ranges::subrange<Lit*>;
+using MutClausePtrRange = std::remove_cvref_t<
+    decltype(std::ranges::subrange(std::declval<Lit*>(), std::declval<Lit*>()))>;
 
 /**
  * A value that indicates an invalid variable/literal/clause.
@@ -659,7 +663,7 @@ class Propagator {
      */
     ClausePtrRange lits_of(ClauseRef clause) const noexcept {
         const Lit* begin = m_large_clause_db.data() + clause;
-        return {begin, begin + begin[-1]};
+        return std::ranges::subrange(begin, begin + begin[-1]);
     }
 
     /**
@@ -1045,7 +1049,7 @@ class Propagator {
      */
     MutClausePtrRange mut_lits_of(ClauseRef clause) noexcept {
         Lit* begin = m_large_clause_db.data() + clause;
-        return {begin, begin + begin[-1]};
+        return std::ranges::subrange(begin, begin + begin[-1]);
     }
 
     /**
