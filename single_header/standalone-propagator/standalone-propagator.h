@@ -4,21 +4,21 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <utility>
-#include <cmath>
-#include <ranges>
-#include <string>
-#include <cassert>
-#include <vector>
-#include <cstdint>
-#include <format>
-#include <concepts>
-#include <sstream>
 #include <exception>
-#include <stdexcept>
+#include <cstdint>
 #include <limits>
+#include <concepts>
 #include <algorithm>
 #include <cstddef>
+#include <utility>
+#include <format>
+#include <stdexcept>
+#include <vector>
+#include <string>
+#include <cassert>
+#include <cmath>
+#include <ranges>
+#include <sstream>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
@@ -634,6 +634,11 @@ class Propagator {
   
   public:
     // -------- CONSTRUCTION --------
+    /**
+     * Create a new propagator without any clauses or variables.
+     */
+    inline explicit Propagator();
+
     /**
      * Create a new propagator from a model/formula.
      */
@@ -1615,6 +1620,11 @@ class Propagator {
         learn_buffer.clear();
     }
 };
+
+Propagator::Propagator() :
+    m_num_vars(0),
+    levels{{LevelInfo{0}}}
+{}
 
 Propagator::Propagator(const ModelBuilder& model) :
     m_unary_clauses(model.m_unary_clauses),
