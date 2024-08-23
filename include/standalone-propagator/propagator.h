@@ -176,7 +176,7 @@ class Propagator {
      */
     ClausePtrRange lits_of(ClauseRef clause) const noexcept {
         const Lit* begin = m_large_clause_db.data() + clause;
-        return {begin, begin + begin[-1]};
+        return std::ranges::subrange(begin, begin + begin[-1]);
     }
 
     /**
@@ -562,7 +562,7 @@ class Propagator {
      */
     MutClausePtrRange mut_lits_of(ClauseRef clause) noexcept {
         Lit* begin = m_large_clause_db.data() + clause;
-        return {begin, begin + begin[-1]};
+        return std::ranges::subrange(begin, begin + begin[-1]);
     }
 
     /**
