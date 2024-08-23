@@ -5,6 +5,7 @@
 #include "reason.h"
 #include "model_builder.h"
 #include <cassert>
+#include <optional>
 
 namespace sprop {
 namespace detail {
@@ -240,6 +241,18 @@ class Propagator {
     Var num_vars() const noexcept { return m_num_vars; }
 
     // -------- STATE QUERY --------
+    /**
+     * @brief Get the truth value of the given literal in the current trail.
+     * If the literal is open, returns std::nullopt.
+     */
+    std::optional<bool> value_of(Lit literal) const noexcept {
+        Var v = lit::var(literal);
+        auto s = variables[v].state(literal);
+        if(s == 0) return false;
+        if(s == 1) return true;
+        return std::nullopt;
+    }
+
     /**
      * @brief Check if the given literal is assigned to true in the current
      * trail.

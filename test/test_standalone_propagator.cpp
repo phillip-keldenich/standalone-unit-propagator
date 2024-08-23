@@ -50,6 +50,10 @@ TEST_CASE("[Propagator] Basic CDCL SAT solver test case: waerden(3, 3; 8)") {
     REQUIRE(propagator.get_trail().empty());
     REQUIRE(propagator.get_current_level() == 0);
     REQUIRE(propagator.push_level(vars[1]));
+    REQUIRE(*propagator.value_of(vars[1]));
+    REQUIRE(!*propagator.value_of(lnot(vars[1])));
+    REQUIRE(!propagator.value_of(vars[2]));
+    REQUIRE(!propagator.value_of(vars[3]));
     REQUIRE(propagator.get_current_level() == 1);
     REQUIRE(propagator.get_trail().size() == 1);
     REQUIRE(propagator.get_trail()[0] == vars[1]);

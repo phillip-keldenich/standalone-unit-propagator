@@ -4,21 +4,22 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
+#include <optional>
 #include <exception>
-#include <sstream>
-#include <limits>
-#include <type_traits>
-#include <concepts>
-#include <cstdint>
-#include <stdexcept>
 #include <string>
-#include <utility>
 #include <cstddef>
-#include <format>
-#include <cassert>
-#include <vector>
-#include <ranges>
+#include <utility>
+#include <concepts>
 #include <algorithm>
+#include <vector>
+#include <type_traits>
+#include <stdexcept>
+#include <format>
+#include <cstdint>
+#include <sstream>
+#include <cassert>
+#include <limits>
+#include <ranges>
 #include <cmath>
 
 /// Project headers concatenated into a single header
@@ -923,6 +924,18 @@ class Propagator {
     Var num_vars() const noexcept { return m_num_vars; }
 
     // -------- STATE QUERY --------
+    /**
+     * @brief Get the truth value of the given literal in the current trail.
+     * If the literal is open, returns std::nullopt.
+     */
+    std::optional<bool> value_of(Lit literal) const noexcept {
+        Var v = lit::var(literal);
+        auto s = variables[v].state(literal);
+        if(s == 0) return false;
+        if(s == 1) return true;
+        return std::nullopt;
+    }
+
     /**
      * @brief Check if the given literal is assigned to true in the current
      * trail.
