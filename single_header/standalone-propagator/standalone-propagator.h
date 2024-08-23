@@ -4,23 +4,23 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <optional>
 #include <exception>
 #include <string>
-#include <cstddef>
-#include <utility>
-#include <concepts>
-#include <algorithm>
-#include <vector>
-#include <type_traits>
-#include <stdexcept>
-#include <format>
-#include <cstdint>
 #include <sstream>
-#include <cassert>
+#include <format>
 #include <limits>
-#include <ranges>
 #include <cmath>
+#include <utility>
+#include <ranges>
+#include <vector>
+#include <stdexcept>
+#include <type_traits>
+#include <optional>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <algorithm>
+#include <concepts>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
