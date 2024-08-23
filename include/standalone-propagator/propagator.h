@@ -224,7 +224,7 @@ class Propagator {
      * i.e., what would be returned by next_clause(last_clause).
      */
     ClauseRef longer_clause_end() const noexcept {
-        return m_large_clause_db.size();
+        return m_large_clause_db.size() + 1;
     }
 
     /**
@@ -1097,7 +1097,7 @@ class Propagator {
                 return NIL;
             }
             default: {
-                ClauseRef ref(m_large_clause_db.size());
+                ClauseRef ref(m_large_clause_db.size() + 1);
                 m_large_clause_db.push_back(ClauseLen(learn_buffer.size()));
                 m_large_clause_db.insert(m_large_clause_db.end(), learn_buffer.begin(), learn_buffer.end());
                 return ref;
@@ -1105,10 +1105,16 @@ class Propagator {
         }
     }
 
-    void p_new_watch(Lit l1, Lit l2, ClauseRef clause) {
+    void p_new_watch(Lit learnt, Lit target_lit, ClauseRef clause) {
         assert(clause != NIL);
-        watchers[l1].push_back(Watcher{l2, clause});
-        watchers[l2].push_back(Watcher{l1, clause});
+        MutClausePtrRange lits = mut_lits_of(clause);
+        Lit* lit_array = lits.begin();
+        assert(lit_array[0] == learnt);
+        auto other = std::find(lits.begin() + 1, lits.end(), target_lit);
+        assert(other != lits.end());
+        std::swap(lit_array[1], *other);
+        watchers[learnt].push_back(Watcher{target_lit, clause});
+        watchers[target_lit].push_back(Watcher{learnt, clause});
     }
 
     template <typename AssignmentHandler>
