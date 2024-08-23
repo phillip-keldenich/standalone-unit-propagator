@@ -148,6 +148,11 @@ class Propagator {
   public:
     // -------- CONSTRUCTION --------
     /**
+     * Create a new propagator without any clauses or variables.
+     */
+    inline explicit Propagator();
+
+    /**
      * Create a new propagator from a model/formula.
      */
     inline explicit Propagator(const ModelBuilder& model);
@@ -1128,6 +1133,11 @@ class Propagator {
         learn_buffer.clear();
     }
 };
+
+Propagator::Propagator() :
+    m_num_vars(0),
+    levels{{LevelInfo{0}}}
+{}
 
 Propagator::Propagator(const ModelBuilder& model) :
     m_unary_clauses(model.m_unary_clauses),
