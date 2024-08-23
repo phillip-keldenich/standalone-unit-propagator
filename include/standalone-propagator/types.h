@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cmath>
 #include <limits>
 #include <ranges>
 #include <concepts>
