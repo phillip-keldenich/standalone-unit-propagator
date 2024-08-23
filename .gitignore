@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# More unwanted stuff, build directories
+**/*.DS_Store
+**/cmake-build*
+**/build*
+**/Thumbs.db
+**/*.pyc
+**/__pycache__
+**/.vscode
+
