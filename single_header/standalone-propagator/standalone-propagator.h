@@ -4,23 +4,23 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <exception>
-#include <string>
 #include <sstream>
-#include <format>
-#include <limits>
-#include <cmath>
-#include <utility>
-#include <ranges>
-#include <vector>
-#include <stdexcept>
-#include <type_traits>
-#include <optional>
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
 #include <algorithm>
+#include <cassert>
+#include <optional>
+#include <cmath>
 #include <concepts>
+#include <vector>
+#include <format>
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+#include <string>
+#include <cstdint>
+#include <exception>
+#include <ranges>
+#include <stdexcept>
+#include <limits>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
@@ -509,6 +509,14 @@ class ModelBuilder {
         Lit result = m_current_lit;
         m_current_lit += 2;
         return result;
+    }
+
+    /**
+     * @brief Ensure that the model as at least n variables.
+     */
+    void reserve_variables(Lit n) noexcept {
+        Lit new_max = 2 * n;
+        m_current_lit = (std::max)(m_current_lit, new_max);
     }
 
     /**

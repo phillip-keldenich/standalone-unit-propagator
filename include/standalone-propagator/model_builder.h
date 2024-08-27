@@ -36,6 +36,14 @@ class ModelBuilder {
     }
 
     /**
+     * @brief Ensure that the model as at least n variables.
+     */
+    void reserve_variables(Lit n) noexcept {
+        Lit new_max = 2 * n;
+        m_current_lit = (std::max)(m_current_lit, new_max);
+    }
+
+    /**
      * @brief Get the number of variables in the model.
      */
     Var num_vars() const noexcept {
