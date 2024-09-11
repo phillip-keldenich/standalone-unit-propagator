@@ -1212,6 +1212,10 @@ bool Propagator::resolve_conflicts() {
 bool Propagator::push_level(Lit decision) {
     Lit dvar = lit::var(decision);
     VariableState& vstate = variables[dvar];
+    if(conflicting) {
+        throw std::invalid_argument(
+            "The propagator is already conflicting!");
+    }
     if (!vstate.is_open()) {
         throw std::invalid_argument(
             "The given decision literal was already assigned!");

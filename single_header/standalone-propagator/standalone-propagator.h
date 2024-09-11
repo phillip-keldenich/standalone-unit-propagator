@@ -4,23 +4,23 @@
 /// DO NOT EDIT THIS AUTO-GENERATED FILE
 
 /// Standard library includes
-#include <sstream>
-#include <algorithm>
-#include <cassert>
-#include <optional>
-#include <cmath>
-#include <concepts>
-#include <vector>
 #include <format>
-#include <cstddef>
-#include <type_traits>
-#include <utility>
-#include <string>
-#include <cstdint>
-#include <exception>
+#include <sstream>
+#include <cassert>
 #include <ranges>
+#include <concepts>
+#include <type_traits>
+#include <algorithm>
 #include <stdexcept>
+#include <vector>
+#include <optional>
+#include <cstddef>
+#include <exception>
+#include <utility>
+#include <cmath>
 #include <limits>
+#include <cstdint>
+#include <string>
 
 /// Project headers concatenated into a single header
 /// Original header: #include "types.h"
@@ -1903,6 +1903,10 @@ bool Propagator::resolve_conflicts() {
 bool Propagator::push_level(Lit decision) {
     Lit dvar = lit::var(decision);
     VariableState& vstate = variables[dvar];
+    if(conflicting) {
+        throw std::invalid_argument(
+            "The propagator is already conflicting!");
+    }
     if (!vstate.is_open()) {
         throw std::invalid_argument(
             "The given decision literal was already assigned!");
